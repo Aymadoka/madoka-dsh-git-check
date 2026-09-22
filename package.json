@@ -3,7 +3,14 @@
   "version": "0.1.0",
   "description": "DSH 插件 — 一键扫描、分类、审查并提交代码",
   "license": "MIT",
-  "homepage": "https://github.com/anywhere-labs/dsh-desktop",
+  "homepage": "https://github.com/Aymadoka/madoka-dsh-git-check#readme",
+  "bugs": {
+    "url": "https://github.com/Aymadoka/madoka-dsh-git-check/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aymadoka/madoka-dsh-git-check.git"
+  },
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
