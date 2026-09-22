@@ -5,9 +5,6 @@
 为 DSH（含 DSH-Desktop）提供完整的 Git 工作流能力：扫描工作目录、智能分类、
 预提交质量检查、暂存/提交、以及 `.gitignore` 智能生成。
 
-本插件是 [madoka-opencode-git-check](https://github.com/anywhere-labs/dsh-desktop)
-（opencode 版）的 DSH 移植版，功能基本一致，详见文末「与 opencode 版的差异」。
-
 ## 功能
 
 - **智能分类**：按 8 类自动归类变更文件（源码、配置、文档、测试、样式、资源、构建产物、其他），标注状态与增删行统计
@@ -87,23 +84,25 @@ tests/
 因此全部逻辑都可以用内存替身做单元测试；`src/index.ts` 是唯一的
 Harness 接线层（`ctx.tools` / `ctx.commands` / `ctx.subprocess` / `ctx.fs`）。
 
-## 与 opencode 版的差异
+## 实现说明
 
-| 方面 | opencode 版 | DSH 版 |
-|------|-------------|--------|
-| 插件协议 | `@opencode-ai/plugin`（`tool()` + `config.command`） | Cordis 插件（`ctx.tools.register(defineTool(...))` + `ctx.commands.register(...)`） |
-| 命令模板 | `config.command["commit"]` 等 | `/commit`、`/commit-en`、`/gitignore` 三个人类命令，触发时经 `agent.followup` 向智能体注入工作流 |
-| `commit:en` 命名 | 允许冒号 | DSH 命令名只允许 `^[a-z][a-z0-9_-]*$`，对应为 **`/commit-en`** |
-| shell 执行 | 自研 `$shell`（`execSync` + 引用转义） | `ctx.subprocess.spawn`，argv 数组直传，无转义问题，原生跨平台 |
-| 文件读写 | `node:fs` 直写 | `ctx.fs`（走沙箱裁决、`fs/write-intent` / `fs/edit-intent` waterfall 与 `fs/observed` 观测） |
-| 工作目录 | `context.worktree ?? context.directory` | 会话 cwd（`exec.agent.session.header.cwd`）+ 可选 `workdir` 参数 |
-| 测试 | 无 | `node:test` 单元测试 60 用例（`npm run test`） |
-| 构建 | `tsc` → `dist/` | `tsc` → `lib/`（DSH 包约定）+ `cordis.patch.yml` 组合声明 |
-
-另修复了一处上游 latent bug：opencode 版用整串 `trim()` 切分
-`git status --porcelain`，会吃掉首行行首空格（未暂存变更最常见的情况），
-把 ` M a.ts` 误解析为 `.ts`。DSH 版改用 `splitGitLines`
-（逐行处理、保留行首空格、兼容 CRLF），见 `src/lib/scanner.ts`。
+- **插件协议**：标准 Cordis 插件（`export name/inject/apply`），经
+  `ctx.tools.register(defineTool(...))` 注册 6 个工具，
+  经 `ctx.commands.register(...)` 注册 3 个人类命令
+- **命令触发**：`/commit`、`/commit-en`、`/gitignore` 触发时经
+  `agent.followup` 向智能体注入工作流（模板见 `src/lib/templates.ts`）；
+  DSH 命令名只允许 `^[a-z][a-z0-9_-]*$`，英文提交流程对应 `/commit-en`
+- **进程执行**：`ctx.subprocess.spawn`，argv 数组直传、无 shell 层，
+  无转义问题，原生跨平台（Windows / macOS / Linux）
+- **文件读写**：`ctx.fs`（走沙箱裁决、`fs/write-intent` / `fs/edit-intent`
+  waterfall 与 `fs/observed` 观测）
+- **工作目录**：会话 cwd（`exec.agent.session.header.cwd`）+ 可选 `workdir` 参数
+- **porcelain 解析**：`git status --porcelain` 的行首空格本身就是状态位
+  （` M file` 表示未暂存的修改），因此不能对整串输出做 `trim()` 再切分
+  （会把 ` M a.ts` 误解析为 `.ts`）；`splitGitLines`
+  （见 `src/lib/scanner.ts`）逐行处理、保留行首空格、兼容 CRLF
+- **测试**：`node:test` 单元测试 60 用例（`npm run test`）
+- **构建**：`tsc` → `lib/`（DSH 包约定）+ `cordis.patch.yml` 组合声明
 
 ## 协议
 
